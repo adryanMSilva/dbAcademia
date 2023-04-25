@@ -160,27 +160,6 @@ CREATE VIEW VerAluno AS
 	INNER JOIN Pagamento p ON idAluno = id_aluno ORDER BY u.Nome ASC;
 SELECT * from VerAluno;
 
-#Cursor para atualizar o treino
-DECLARE @nome VARCHAR(50), @categoria VARCHAR(50)
-
-DECLARE cursor_exercicio CURSOR FOR
-SELECT nome, categoria FROM Exercicio
-
-OPEN cursor_exercicio
-FETCH NEXT FROM cursor_exercicio INTO @nome, @categoria
-
-WHILE @@FETCH_STATUS = 0
-BEGIN
-PRINT 'Nome do exercício: ' + @nome + ', Categoria: ' + @categoria
-FETCH NEXT FROM cursor_exercicio INTO @nome, @categoria
-END
-
-CLOSE cursor_exercicio;
-DEALLOCATE cursor_exercicio;
-
-DELIMITER ;
-
-
 CREATE VIEW quantidade_alunos_por_plano AS
 SELECT COUNT(*) as Alunos, p.nome FROM Aluno a
 INNER JOIN Plano p ON a.id_plano = p.idPlano
@@ -311,26 +290,20 @@ CREATE VIEW verificar_pagamentos_atrasados AS
     ON p.id_aluno = a.idAluno
     WHERE p.data_pagamento < curdate();
     
-    
-#trigger para vincular aluno a pagamento
-DELIMITER ||
-CREATE TRIGGER atualiza_pagamento AFTER INSERT ON Aluno
-FOR EACH ROW
-BEGIN
-    INSERT INTO Pagamento (id_aluno, data_pagamento, statusPagamento)
-    VALUES (NEW.idAluno, DATE_ADD(CURDATE(), INTERVAL 1 MONTH), 'Não');
-END;
-||
-DELIMITER ;
-
 DELIMITER ||
 CREATE PROCEDURE pagamento_aluno(IN pIdPagamento INT, pStatusPagamento VARCHAR(8))
 BEGIN
 	UPDATE pagamento SET statusPagamento = pStatusPagamento WHERE idPagamento = pIdPagamento;
+    
+    IF(pStatusPagamento = "Pago") THEN
+		INSERT INTO pagamento(id_aluno, data_pagamento) VALUE(
+		(SELECT id FROM ((SELECT id_aluno as id FROM pagamento WHERE idPagamento = pIdPagamento)) as P), DATE_ADD(CURDATE(), INTERVAL 1 MONTH)
+            );
+	END IF;
 END
 ||
 DELIMITER ;
-call pagamento_aluno(2, 'Sim');
+call pagamento_aluno(2, 'Pago');
 
 #Cursor para buscar alunos por professor
 -- drop procedure buscar_alunos_professor
@@ -364,6 +337,3 @@ END;
 DELIMITER ;
 
 -- call buscar_alunos_professor('Mara Shimamoto');
-
-
-
