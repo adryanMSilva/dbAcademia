@@ -337,3 +337,28 @@ END;
 DELIMITER ;
 
 -- call buscar_alunos_professor('Mara Shimamoto');
+DELIMITER ||
+CREATE TRIGGER valida_carga_horaria 
+BEFORE INSERT ON Professor
+FOR EACH ROW
+BEGIN
+	IF(NEW.carga_horaria > 8) THEN
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'A carga horária diária não pode ser superior a 8 horas!';
+    END IF;
+END;
+||
+DELIMITER ;
+
+DELIMITER ||
+	CREATE TRIGGER valida_formato_email
+    BEFORE INSERT ON Usuario
+    FOR EACH ROW
+    BEGIN
+		IF NEW.email NOT REGEXP '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$' THEN
+			SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'O email fornecido não é válido';
+		END IF;
+	END;
+||
+
+DELIMITER ;
