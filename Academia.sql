@@ -165,8 +165,6 @@ SELECT COUNT(*) as Alunos, p.nome FROM Aluno a
 INNER JOIN Plano p ON a.id_plano = p.idPlano
 GROUP BY(id_plano) ORDER BY Alunos DESC;
 
-SELECT * FROM quantidade_alunos_por_plano;
-
 DELIMITER ||
 CREATE FUNCTION valida_cpf(cpf VARCHAR(14)) RETURNS BOOLEAN
 BEGIN
@@ -377,3 +375,30 @@ DELIMITER ||
 
 DELIMITER ;
 
+DELIMITER ||
+CREATE PROCEDURE listar_pagamentos_aluno(IN aluno_id INT)
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE pagamento_id INT;
+    DECLARE pagamento_data DATE;
+    DECLARE pagamento_status VARCHAR(8);
+    DECLARE cur CURSOR FOR 
+        SELECT idPagamento, data_pagamento, statusPagamento
+        FROM Pagamento
+        WHERE id_aluno = aluno_id;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO pagamento_id, pagamento_data, pagamento_status;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        SELECT CONCAT('ID: ', pagamento_id, ', Data: ', pagamento_data, ', Status: ', pagamento_status) AS Informacao_de_Pagamento;
+    END LOOP;
+    
+    CLOSE cur;
+    
+END 
+||
+DELIMITER ;
