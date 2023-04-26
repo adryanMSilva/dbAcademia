@@ -154,7 +154,7 @@ call cria_novo_aluno('Rafael', 'rafael@laal.com', 'rafael1234', '99876-2564', '5
 
 #  Ver todos os aluno no banco de dados;
 CREATE VIEW VerAluno AS
-	select u.Nome, u.Email, u.Senha, u.Telefone, u.CPF, u.Data_Nascimento, l.nome as Tipo_Plano, p.Data_Pagamento from Aluno a 
+	select u.Nome, u.Email, u.Telefone, u.CPF, u.Data_Nascimento, l.nome as Tipo_Plano, p.Data_Pagamento from Aluno a 
 	INNER JOIN Usuario u ON idUsuario = id_usuario
     INNER JOIN Plano l ON id_plano = idPlano
 	INNER JOIN Pagamento p ON idAluno = id_aluno ORDER BY u.Nome ASC;
@@ -163,7 +163,7 @@ SELECT * from VerAluno;
 CREATE VIEW quantidade_alunos_por_plano AS
 SELECT COUNT(*) as Alunos, p.nome FROM Aluno a
 INNER JOIN Plano p ON a.id_plano = p.idPlano
-GROUP BY(id_plano);
+GROUP BY(id_plano) ORDER BY Alunos DESC;
 
 SELECT * FROM quantidade_alunos_por_plano;
 
@@ -261,12 +261,20 @@ DELIMITER ;
 CALL listar_exercicios_por_categoria('Membros inferiores');
 
 DELIMITER ||
-CREATE FUNCTION contar_alunos_por_plano(idPlano INT)
+CREATE FUNCTION contar_alunos_por_plano(nomePlano varchar(50))
 RETURNS INT
 BEGIN
     DECLARE count INT;
-    SELECT COUNT(*) INTO count FROM Aluno WHERE id_plano = idPlano;
-    RETURN count;
+    DECLARE idPlanoInformado INT;
+    
+    SELECT idPlano INTO idPlanoInformado FROM plano WHERE nome = nomePlano;
+    
+    IF idPlanoInformado IS NOT NULL THEN
+		SELECT COUNT(*) INTO count FROM Aluno WHERE id_plano = idPlanoInformado;
+		RETURN count;
+	ELSE 
+		RETURN -1;
+	END IF;
 END 
 ||
 DELIMITER ;
@@ -274,7 +282,13 @@ DELIMITER ;
 DELIMITER ||
 CREATE PROCEDURE atualizar_data_pagamento(IN pIdAluno INT, IN pNovaData DATE)
 BEGIN
-	UPDATE pagamento p SET p.data_pagamento = pNovaData WHERE p.id_aluno = pIdAluno;
+	DECLARE idUltimoPagamento INT;
+    SELECT idPagamento INTO idUltimoPagamento FROM pagamento WHERE id_aluno = pIdAluno AND statusPagamento = 'A pagar';
+    IF(idUltimoPagamento IS NOT NULL) THEN
+		UPDATE pagamento p SET p.data_pagamento = pNovaData WHERE p.id_aluno = pIdAluno;
+	ELSE 
+		SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Não existem faturas abertas para o usuário!';
+	END IF;
 END;
 ||
 DELIMITER ;
@@ -283,12 +297,12 @@ CALL atualizar_data_pagamento(1, "2023-05-15");
 
 
 CREATE VIEW verificar_pagamentos_atrasados AS
-	SELECT u.nome, u.email, u.telefone, DATE_FORMAT(p.data_pagamento, "%d/%m/%Y") as dataPagamento
+	SELECT u.nome, u.email, u.telefone, DATE_FORMAT(p.data_pagamento, "%d/%m/%Y") as dataPagamento, datediff(curdate(), p.data_pagamento) as diasAtraso
     FROM aluno a INNER JOIN usuario u
     ON a.id_usuario = u.idUsuario
     INNER JOIN pagamento p
     ON p.id_aluno = a.idAluno
-    WHERE p.data_pagamento < curdate();
+    WHERE p.data_pagamento < curdate() AND p.statusPagamento = "A pagar";
     
 DELIMITER ||
 CREATE PROCEDURE pagamento_aluno(IN pIdPagamento INT, pStatusPagamento VARCHAR(8))
@@ -362,3 +376,4 @@ DELIMITER ||
 ||
 
 DELIMITER ;
+
